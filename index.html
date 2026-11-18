@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>VIO MAZE – El Reto Vegetal | Laive Vio</title>
+<style>
+/* ===== VIO MAZE · estilos (paleta: verdes, violeta, blanco) ===== */
+:root{--g:#7cfc6a;--v:#9b5cff;--bg:#07040f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;touch-action:manipulation}
+html,body{margin:0;height:100%;background:radial-gradient(circle at 50% 0,#22113f,var(--bg) 70%);color:#fff;font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100dvh;padding:env(safe-area-inset-top) 8px env(safe-area-inset-bottom)}
+#hud{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;justify-content:space-between;padding:8px 4px 4px;font-size:13px;color:#cfc4ee}
+#hud b{color:var(--g);font-size:16px}
+#li{letter-spacing:2px}
+.btns button{background:#1c1038;border:1px solid var(--v);color:#fff;border-radius:8px;width:34px;height:30px;font-size:15px;margin-left:4px;cursor:pointer}
+#bar{height:8px;border-radius:6px;background:#1c1038;overflow:hidden;margin:2px 4px 6px}
+#bi{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--v),var(--g));transition:width .15s}
+#wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#wrap.fx canvas{animation:in .7s ease-out}
+@keyframes in{from{opacity:0;transform:scale(.85) rotate(-2deg);filter:hue-rotate(90deg) brightness(2)}to{opacity:1;transform:none}}
+canvas{display:block}
+#pad{display:none;grid-template:repeat(3,48px)/repeat(3,56px);gap:4px;justify-content:center;padding:6px 0 10px}
+#pad button{background:#1c1038;border:2px solid var(--v);border-radius:14px;color:var(--g);font-size:22px}
+#pad button:active{background:var(--v)}
+@media (pointer:coarse),(max-width:700px){#pad{display:grid}}
+.scr{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px;background:rgba(7,4,15,.93);z-index:5}
+.scr.on{display:flex}
+h1{margin:0;font-size:clamp(38px,9vw,72px);letter-spacing:3px;color:var(--g);text-shadow:0 0 18px var(--v),0 0 2px #fff}
+h2{margin:0;font-size:clamp(28px,6vw,48px);color:var(--g);text-shadow:0 0 14px var(--v)}
+.sub{color:#e8dcff;letter-spacing:5px;font-size:15px}
+.brand{font-weight:900;letter-spacing:6px;color:#fff;background:var(--v);padding:4px 14px;border-radius:20px}
+.big{font-size:22px;color:#fff}
+.big b{color:var(--g)}
+p{margin:0;max-width:460px;color:#cfc4ee;line-height:1.45;font-size:14px}
+.go{background:linear-gradient(135deg,var(--g),#3fd47a);color:#1a0f33;border:0;border-radius:30px;padding:14px 38px;font-size:20px;font-weight:900;cursor:pointer;box-shadow:0 0 22px rgba(124,252,106,.55)}
+.go:hover{transform:scale(1.05)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.chips span{border:1px solid var(--v);border-radius:20px;padding:4px 10px;font-size:12px;color:#e8dcff}
+@media (prefers-reduced-motion:reduce){#wrap.fx canvas{animation:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <span>PUNTOS <b id="sc">0</b></span><span>NIVEL <b id="lv">1</b>/5</span><span id="li"></span><span>RÉCORD <b id="bs">0</b></span>
+    <span class="btns"><button id="bP" title="Pausa">⏸</button><button id="bR" title="Reiniciar">↻</button><button id="bS" title="Sonido">🔊</button></span>
+  </div>
+  <div id="bar"><i id="bi"></i></div>
+  <div id="wrap"><canvas id="c"></canvas></div>
+  <div id="pad"><span></span><button data-d="0,-1">▲</button><span></span><button data-d="-1,0">◀</button><span></span><button data-d="1,0">▶</button><span></span><button data-d="0,1">▼</button><span></span></div>
+</div>
+
+<!-- Pantalla de inicio -->
+<div class="scr on" id="sStart">
+  <span class="brand">LAIVE VIO</span>
+  <h1>VIO MAZE</h1><div class="sub">EL RETO VEGETAL</div>
+  <canvas id="mc" width="120" height="120"></canvas>
+  <button class="go" id="bGo">JUGAR</button>
+  <p>Guía a VIO por el laberinto, recoge todas las gotas y escapa de los fantasmitas de comida chatarra. Las bolas violetas te dan poder para capturarlos.</p>
+  <p>Flechas o WASD para moverte · Espacio para pausar · En el celular usa los botones o desliza.</p>
+  <div class="chips"><span>1 Iniciación</span><span>2 Explorador</span><span>3 Desafío Vio</span><span>4 Experto Vio</span><span>5 El Gran Reto Vio</span></div>
+</div>
+<!-- Transición -->
+<div class="scr" id="sTrans"><h2>NIVEL COMPLETADO</h2><div class="big">Puntaje acumulado: <b id="tS">0</b></div><button class="go" id="bNext">CONTINUAR</button></div>
+<!-- Derrota -->
+<div class="scr" id="sOver"><h2>GAME OVER</h2><div class="big">Puntaje final: <b id="oS">0</b></div><div class="big">Récord: <b id="oB">0</b></div><button class="go" id="bRetry">VOLVER A INTENTAR</button></div>
+<!-- Final -->
+<div class="scr" id="sWin"><h2>¡RETO VIO COMPLETADO!</h2><div class="big">¡Felicitaciones! Superaste los cinco laberintos.</div><div class="big">Puntaje total: <b id="wS">0</b></div><div class="big">Récord: <b id="wB">0</b></div><button class="go" id="bAgain">JUGAR NUEVAMENTE</button></div>
+
+<script>
+(()=>{
+"use strict";
+const $=i=>document.getElementById(i),cv=$("c"),cx=cv.getContext("2d");
+
+/* ===== CONFIGURACIÓN DE NIVELES (editable) =====
+ cw/ch: celdas del laberinto · gh: fantasmitas · gs: velocidad fantasmas (casillas/s) · ps: velocidad de VIO
+ pw: potenciadores · pt: segundos de poder · br: apertura de muros (más = pasillos más abiertos)
+ rnd: probabilidad de error de los fantasmas (menos = más inteligentes) · seed: semilla del laberinto */
+const LV=[
+ {n:"INICIACIÓN",cw:7,ch:6,gh:1,gs:3.3,ps:5.2,pw:4,pt:9,br:.6,rnd:.35,seed:7,col:"#7cfc6a"},
+ {n:"EXPLORADOR",cw:8,ch:7,gh:2,gs:3.9,ps:5.2,pw:3,pt:7,br:.4,rnd:.22,seed:21,col:"#b07cff"},
+ {n:"DESAFÍO VIO",cw:9,ch:7,gh:3,gs:4.5,ps:5.3,pw:2,pt:6,br:.27,rnd:.12,seed:33,col:"#46e6c0"},
+ {n:"EXPERTO VIO",cw:10,ch:8,gh:4,gs:4.9,ps:5.3,pw:2,pt:5,br:.14,rnd:.06,seed:48,col:"#ff7ad9"},
+ {n:"EL GRAN RETO VIO",cw:11,ch:8,gh:5,gs:5.2,ps:5.4,pw:1,pt:4,br:.07,rnd:.02,seed:59,col:"#ffd84d"}];
+const GC=["#3aa0ff","#ff7ab8","#ff9a2e","#ff4a4a","#c04dff"]; // soda, dona, hamburguesa, papas, caramelo
+
+/* ===== GENERADOR DE LABERINTOS (determinista por nivel) ===== */
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gen(c){
+  const r=rng(c.seed),w=2*c.cw+1,h=2*c.ch+1,m=Array.from({length:h},()=>Array(w).fill(1));
+  const st=[[1,1]];m[1][1]=0;
+  while(st.length){ // recorrido en profundidad: garantiza laberinto conexo
+    const[x,y]=st[st.length-1];
+    const n=[[2,0],[-2,0],[0,2],[0,-2]].filter(([a,b])=>x+a>0&&x+a<w-1&&y+b>0&&y+b<h-1&&m[y+b][x+a]);
+    if(!n.length){st.pop();continue}
+    const[a,b]=n[Math.floor(r()*n.length)];m[y+b/2][x+a/2]=0;m[y+b][x+a]=0;st.push([x+a,y+b]);
+  }
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++)if(m[y][x]&&((x%2===0)!==(y%2===0))&&r()<c.br)m[y][x]=0; // abre pasillos
+  return m;
+}
+
+/* ===== ESTADO ===== */
+let st="menu",L=0,score=0,lives=3,best=0,M,W,H,ts=20,dpr=1,dots,left,total,P,G=[],fr=0,readyT=0,deadT=0,t=0,paused=false,parts=[],bg=null,snd=true,ac=null,cfg=LV[0];
+try{best=+localStorage.getItem("vioMazeBest")||0}catch(e){}
+const free=(x,y)=>M[y]&&M[y][x]===0;
+const mk=(x,y,sp)=>({x,y,tx:x,ty:y,d:{x:0,y:0},sp});
+
+/* ===== SONIDO (WebAudio, sin archivos externos) ===== */
+function tone(f,d=.08,ty="square",v=.05,f2){
+  if(!snd)return;
+  try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume();
+    const o=ac.createOscillator(),g=ac.createGain(),n=ac.currentTime;o.type=ty;o.frequency.setValueAtTime(f,n);
+    if(f2)o.frequency.linearRampToValueAtTime(f2,n+d);g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.001,n+d);
+    o.connect(g);g.connect(ac.destination);o.start();o.stop(n+d)}catch(e){}
+}
+
+/* ===== NIVELES ===== */
+function loadLevel(){
+  cfg=LV[L];M=gen(cfg);W=M[0].length;H=M.length;
+  dots=M.map(r=>r.map(v=>v?0:1));total=0;
+  const cr=[[1,1],[W-2,H-2],[W-2,1],[1,H-2]];
+  for(let i=0;i<cfg.pw;i++)dots[cr[i][1]][cr[i][0]]=2;
+  const px=2*Math.floor(cfg.cw/2)+1,gy=2*Math.floor(cfg.ch/2)+1;
+  dots[H-2][px]=0;dots[gy][px]=0;
+  dots.forEach(r=>r.forEach(v=>{if(v)total++}));left=total;
+  P=mk(px,H-2,cfg.ps);P.want={x:0,y:0};P.fd={x:-1,y:0};
+  G=[];for(let i=0;i<cfg.gh;i++){const g=mk(px,gy,cfg.gs);g.k=i;g.rel=1.5+i*2.5;g.f=false;g.home=[px,gy];G.push(g)}
+  fr=0;parts=[];st="ready";readyT=1.8;
+  $("wrap").classList.remove("fx");void $("wrap").offsetWidth;$("wrap").classList.add("fx");
+  resize();
+}
+function resetPos(){
+  const px=2*Math.floor(cfg.cw/2)+1;
+  P.x=P.tx=px;P.y=P.ty=H-2;P.d={x:0,y:0};P.want={x:0,y:0};
+  G.forEach((g,i)=>{g.x=g.tx=g.home[0];g.y=g.ty=g.home[1];g.d={x:0,y:0};g.rel=1.5+i*2.5;g.f=false});fr=0;
+}
+
+/* ===== TAMAÑO Y FONDO PRE-DIBUJADO ===== */
+function resize(){
+  if(!M)return;const w=$("wrap");dpr=Math.min(window.devicePixelRatio||1,2);
+  ts=Math.max(8,Math.floor(Math.min(w.clientWidth/W,w.clientHeight/H)));
+  cv.style.width=W*ts+"px";cv.style.height=H*ts+"px";cv.width=W*ts*dpr;cv.height=H*ts*dpr;
+  bg=document.createElement("canvas");bg.width=cv.width;bg.height=cv.height;
+  const b=bg.getContext("2d");b.scale(dpr,dpr);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(M[y][x]){b.fillStyle="#140a2b";b.fillRect(x*ts,y*ts,ts,ts)}
+  b.strokeStyle=cfg.col;b.lineWidth=2;b.lineCap="round";b.shadowColor=cfg.col;b.shadowBlur=7;b.beginPath();
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(M[y][x]){ // borde luminoso en lados que dan a pasillo
+    const X=x*ts,Y=y*ts;
+    if(free(x,y-1)){b.moveTo(X,Y);b.lineTo(X+ts,Y)}
+    if(free(x,y+1)){b.moveTo(X,Y+ts);b.lineTo(X+ts,Y+ts)}
+    if(free(x-1,y)){b.moveTo(X,Y);b.lineTo(X,Y+ts)}
+    if(free(x+1,y)){b.moveTo(X+ts,Y);b.lineTo(X+ts,Y+ts)}}
+  b.stroke();
+}
+
+/* ===== MOVIMIENTO POR CASILLAS CON INTERPOLACIÓN SUAVE ===== */
+function step(e,dt,choose){
+  let r=e.sp*dt;
+  while(r>1e-6){
+    if(e.x===e.tx&&e.y===e.ty){choose(e);if(e.x===e.tx&&e.y===e.ty)break}
+    const dx=e.tx-e.x,dy=e.ty-e.y,d=Math.abs(dx)+Math.abs(dy),m=Math.min(r,d);
+    e.x+=Math.sign(dx)*m;e.y+=Math.sign(dy)*m;r-=m;
+    if(m>=d){e.x=e.tx;e.y=e.ty}
+  }
+}
+function pChoose(e){
+  const w=e.want;
+  if((w.x||w.y)&&free(e.x+w.x,e.y+w.y)){e.d={x:w.x,y:w.y}}
+  else if(!(e.d.x||e.d.y)||!free(e.x+e.d.x,e.y+e.d.y)){e.d={x:0,y:0};return}
+  e.tx=e.x+e.d.x;e.ty=e.y+e.d.y;e.fd={x:e.d.x,y:e.d.y};
+}
+function setDir(x,y){
+  P.want={x,y};
+  // inversión inmediata a mitad de camino
+  if((P.x!==P.tx||P.y!==P.ty)&&x===-P.d.x&&y===-P.d.y&&(x||y)){P.tx-=P.d.x;P.ty-=P.d.y;P.d={x,y};P.fd={x,y}}
+}
+
+/* ===== IA DE FANTASMITAS =====
+ 0 persigue · 1 intercepta (adelante de VIO) · 2 persigue de cerca / patrulla esquina
+ 3 errático · 4 pinza coordinada con el fantasma 0. En niveles 1-2 todos persiguen. */
+function gChoose(g){
+  const D=[[1,0],[-1,0],[0,1],[0,-1]];
+  let o=D.filter(d=>free(g.x+d[0],g.y+d[1])&&!((g.d.x||g.d.y)&&d[0]===-g.d.x&&d[1]===-g.d.y));
+  if(!o.length)o=D.filter(d=>free(g.x+d[0],g.y+d[1]));
+  if(!o.length)return;
+  let pick;
+  if(g.f||Math.random()<cfg.rnd+(g.k===3?.25:0))pick=o[Math.floor(Math.random()*o.length)];
+  else{
+    const px=Math.round(P.x),py=Math.round(P.y),f=P.fd,sm=L>=2;let T=[px,py];
+    if(g.k===1&&sm)T=[px+f.x*4,py+f.y*4];
+    if(g.k===2&&sm&&Math.hypot(px-g.x,py-g.y)<=6)T=[1,H-2];
+    if(g.k===4&&sm&&G[0])T=[2*(px+f.x*2)-G[0].x,2*(py+f.y*2)-G[0].y];
+    pick=o.reduce((a,d)=>{const s=(g.x+d[0]-T[0])**2+(g.y+d[1]-T[1])**2;return s<a.s?{s,d}:a},{s:1e9}).d;
+  }
+  g.d={x:pick[0],y:pick[1]};g.tx=g.x+pick[0];g.ty=g.y+pick[1];
+}
+
+/* ===== ACTUALIZACIÓN ===== */
+function burst(x,y,c,n){for(let i=0;i<n;i++){const a=Math.random()*6.28,s=1+Math.random()*3;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:.5,c})}}
+function update(dt){
+  if(st==="ready"){readyT-=dt;if(readyT<=0)st="play";return}
+  if(st==="dead"){deadT-=dt;if(deadT<=0){if(lives<=0)endGame(false);else{resetPos();st="ready";readyT=1.2}}return}
+  if(st!=="play")return;
+  step(P,dt,pChoose);
+  const tx=Math.round(P.x),ty=Math.round(P.y);
+  if(Math.abs(P.x-tx)+Math.abs(P.y-ty)<.45&&dots[ty][tx]){
+    const pw=dots[ty][tx]===2;dots[ty][tx]=0;left--;score+=pw?50:10;
+    burst((tx+.5)*ts,(ty+.5)*ts,pw?"#b07cff":"#7cfc6a",pw?14:5);
+    if(pw){fr=cfg.pt;G.forEach(g=>g.f=true);tone(300,.3,"sawtooth",.06,700)}else tone(left%2?820:980,.05,"square",.03);
+    if(score>best){best=score;saveBest()}
+    if(left<=0){levelDone();return}
+  }
+  if(fr>0){fr-=dt;if(fr<=0){fr=0;G.forEach(g=>g.f=false)}}
+  for(const g of G){
+    if(g.rel>0){g.rel-=dt;continue}
+    g.sp=cfg.gs*(g.f?.55:1);step(g,dt,gChoose);
+    if(Math.hypot(g.x-P.x,g.y-P.y)<.6){
+      if(g.f){score+=200;g.f=false;g.x=g.tx=g.home[0];g.y=g.ty=g.home[1];g.d={x:0,y:0};g.rel=2.5;burst((P.x+.5)*ts,(P.y+.5)*ts,"#fff",16);tone(660,.2,"triangle",.07,1200)}
+      else{lives--;st="dead";deadT=1.5;fr=0;G.forEach(q=>q.f=false);tone(500,.7,"sawtooth",.07,80);break}
+    }
+  }
+  for(const p of parts){p.x+=p.vx;p.y+=p.vy;p.l-=dt}
+  parts=parts.filter(p=>p.l>0);
+}
+function saveBest(){try{localStorage.setItem("vioMazeBest",best)}catch(e){}}
+function levelDone(){
+  tone(523,.12,"triangle",.07);setTimeout(()=>tone(659,.12,"triangle",.07),120);setTimeout(()=>tone(784,.25,"triangle",.07),240);
+  if(L===4)endGame(true);else{st="levelend";$("tS").textContent=score;show("sTrans")}
+}
+function endGame(win){
+  st=win?"win":"over";if(score>best)best=score;saveBest();
+  const p=win?"w":"o";$(p+"S").textContent=score;$(p+"B").textContent=best;show(win?"sWin":"sOver");
+}
+
+/* ===== DIBUJO ===== */
+function vio(c,x,y,r,ang,op,tm,fx,fy){
+  c.save();c.translate(x,y);c.save();c.rotate(ang);
+  c.beginPath();c.moveTo(0,0);c.arc(0,0,r,op,Math.PI*2-op);c.closePath();c.clip();
+  const cl=["#7cfc6a","#ffffff","#9b5cff","#c9ff8a","#e8dcff","#3fd47a"]; // franjas multicolor
+  for(let i=0;i<6;i++){c.fillStyle=cl[i];c.beginPath();c.moveTo(0,0);c.arc(0,0,r*1.05,i*Math.PI/3+tm*.8,(i+1)*Math.PI/3+tm*.8+.01);c.fill()}
+  c.fillStyle="rgba(60,30,110,.65)"; // semillitas
+  for(let i=0;i<3;i++){c.beginPath();c.arc(Math.cos(tm*.8+i*2.1)*r*.7,Math.sin(tm*.8+i*2.1)*r*.7,r*.07,0,6.3);c.fill()}
+  c.restore();
+  c.fillStyle="#fff";for(const s of[-1,1]){c.beginPath();c.arc(s*r*.28,-r*.3,r*.22,0,6.3);c.fill()}
+  c.fillStyle="#1a0f33";for(const s of[-1,1]){c.beginPath();c.arc(s*r*.28+fx*r*.07,-r*.3+fy*r*.07,r*.11,0,6.3);c.fill()}
+  c.fillStyle="#2ecc5a";c.beginPath();c.ellipse(r*.15,-r*1.02,r*.28,r*.12,-.5,0,6.3);c.fill(); // hojita
+  c.restore();
+}
+function ghost(g,px,py){
+  const r=ts*.42;py+=Math.sin(t*6+g.k)*ts*.04;
+  const fl=g.f,white=fl&&fr<2&&Math.floor(t*8)%2;
+  cx.fillStyle=fl?(white?"#fff":"#2a3cff"):GC[g.k];
+  cx.beginPath();cx.arc(px,py,r,Math.PI,0);cx.lineTo(px+r,py+r*.9);
+  const w=r/2;for(let i=1;i<=4;i++)cx.lineTo(px+r-i*w,py+r*(i%2?.6:.95));
+  cx.closePath();cx.fill();
+  if(!fl){ // emblema de cada comida chatarra
+    const k=g.k;
+    if(k===0){cx.strokeStyle="#ff3b5c";cx.lineWidth=3;cx.beginPath();cx.moveTo(px+r*.2,py-r*.9);cx.lineTo(px+r*.5,py-r*1.4);cx.stroke();cx.fillStyle="#fff";for(const[a,b]of[[-.5,.4],[-.3,.7],[.5,.5]]){cx.beginPath();cx.arc(px+a*r,py+b*r,r*.08,0,6.3);cx.fill()}}
+    if(k===1){["#fff","#7cfc6a","#ffd84d","#3aa0ff","#fff"].forEach((c,i)=>{cx.fillStyle=c;cx.fillRect(px-r*.7+i*r*.32,py-r*.75+(i%2)*r*.2,r*.2,r*.08)})}
+    if(k===2){cx.fillStyle="#ffe9b0";for(const a of[-.5,0,.5]){cx.beginPath();cx.ellipse(px+a*r,py-r*.65+Math.abs(a)*r*.3,r*.1,r*.05,0,0,6.3);cx.fill()}cx.strokeStyle="#4cc34a";cx.lineWidth=3;cx.beginPath();cx.moveTo(px-r,py+r*.42);cx.lineTo(px+r,py+r*.42);cx.stroke()}
+    if(k===3){cx.fillStyle="#ffd23f";for(let i=0;i<3;i++)cx.fillRect(px-r*.55+i*r*.4,py-r*1.4,r*.28,r*.55)}
+    if(k===4){cx.fillStyle="#ff9bf0";for(const s of[-1,1]){cx.beginPath();cx.moveTo(px+s*r,py);cx.lineTo(px+s*r*1.5,py-r*.35);cx.lineTo(px+s*r*1.5,py+r*.35);cx.fill()}}
+  }
+  cx.fillStyle="#fff";for(const s of[-1,1]){cx.beginPath();cx.arc(px+s*r*.35,py-r*.15,fl?r*.12:r*.3,0,6.3);cx.fill()}
+  if(!fl){cx.fillStyle="#111";for(const s of[-1,1]){cx.beginPath();cx.arc(px+s*r*.35+g.d.x*r*.12,py-r*.15+g.d.y*r*.12,r*.14,0,6.3);cx.fill()}}
+  else{cx.strokeStyle="#fff";cx.lineWidth=2;cx.beginPath();for(let i=0;i<=4;i++)cx.lineTo(px-r*.5+i*r*.25,py+r*.25+(i%2)*r*.15);cx.stroke()}
+}
+function draw(){
+  cx.setTransform(dpr,0,0,dpr,0,0);cx.clearRect(0,0,W*ts,H*ts);
+  if(!bg)return;cx.drawImage(bg,0,0,W*ts,H*ts);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const v=dots[y][x];if(!v)continue;
+    const X=(x+.5)*ts,Y=(y+.5)*ts;
+    if(v===1){cx.fillStyle="#d8ffd0";cx.beginPath();cx.arc(X,Y,ts*.1,0,6.3);cx.fill()}
+    else{cx.fillStyle="#b07cff";cx.shadowColor="#b07cff";cx.shadowBlur=12;cx.beginPath();cx.arc(X,Y,ts*(.22+Math.sin(t*6)*.04),0,6.3);cx.fill();cx.shadowBlur=0}}
+  if(st!=="dead"||Math.floor(deadT*6)%2){
+    const m=(P.d.x||P.d.y)?.06+Math.abs(Math.sin(t*14))*.45:.2;
+    vio(cx,(P.x+.5)*ts,(P.y+.5)*ts,ts*.43,Math.atan2(P.fd.y,P.fd.x),m,t,P.fd.x,P.fd.y)}
+  G.forEach(g=>ghost(g,(g.x+.5)*ts,(g.y+.5)*ts));
+  for(const p of parts){cx.globalAlpha=Math.max(0,p.l*2);cx.fillStyle=p.c;cx.fillRect(p.x,p.y,3,3)}cx.globalAlpha=1;
+  let msg=paused?"PAUSA":st==="ready"?"¡LISTO!":"";
+  if(msg){cx.font="900 "+ts*1.3+"px Trebuchet MS,sans-serif";cx.textAlign="center";cx.fillStyle="#fff";cx.shadowColor="#9b5cff";cx.shadowBlur=16;cx.fillText(msg,W*ts/2,H*ts/2+ts*.5);cx.shadowBlur=0}
+  // HUD
+  $("sc").textContent=score;$("bs").textContent=best;$("lv").textContent=L+1;
+  $("li").textContent="♥".repeat(Math.max(0,lives));$("li").style.color="#ff6b9a";
+  $("bi").style.width=(total?(total-left)/total*100:0)+"%";
+}
+
+/* ===== PANTALLAS Y FLUJO ===== */
+function show(id){document.querySelectorAll(".scr").forEach(s=>s.classList.toggle("on",s.id===id))}
+function hide(){show("")}
+function newGame(){score=0;lives=3;L=0;paused=false;loadLevel();hide()}
+$("bGo").onclick=()=>{tone(600,.1);newGame()};
+$("bRetry").onclick=$("bAgain").onclick=newGame;
+$("bNext").onclick=()=>{L++;loadLevel();hide()};
+$("bR").onclick=()=>{if(st!=="menu")newGame()};
+$("bS").onclick=()=>{snd=!snd;$("bS").textContent=snd?"🔊":"🔇"};
+function pause(){if(st==="play"||st==="ready")paused=!paused}
+$("bP").onclick=pause;
+
+/* ===== CONTROLES ===== */
+const KM={arrowleft:[-1,0],a:[-1,0],arrowright:[1,0],d:[1,0],arrowup:[0,-1],w:[0,-1],arrowdown:[0,1],s:[0,1]};
+addEventListener("keydown",e=>{
+  const k=e.key.toLowerCase();
+  if(k===" "){e.preventDefault();pause();return}
+  if(KM[k]){e.preventDefault();if(P&&!paused)setDir(...KM[k])}
+});
+document.querySelectorAll("#pad button").forEach(b=>b.addEventListener("pointerdown",e=>{e.preventDefault();const[x,y]=b.dataset.d.split(",").map(Number);if(!paused)setDir(x,y)}));
+let sx,sy; // deslizar sobre el laberinto
+cv.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+cv.addEventListener("touchend",e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<20)return;
+  if(Math.abs(dx)>Math.abs(dy))setDir(Math.sign(dx),0);else setDir(0,Math.sign(dy))},{passive:true});
+addEventListener("resize",resize);
+
+/* ===== BUCLE PRINCIPAL ===== */
+const mc=$("mc").getContext("2d");let last=0;
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000||0);last=now;t+=dt;
+  if(st==="menu"){mc.clearRect(0,0,120,120);vio(mc,60,64,46,0,.08+Math.abs(Math.sin(t*5))*.5,t,1,0)}
+  else{if(!paused)update(dt);draw()}
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+$("bs").textContent=best;
+window.__vio={get state(){return st},get P(){return P},get G(){return G},get left(){return left},get lives(){return lives}}; // depuración
+})();
+</script>
+</body>
+</html>
